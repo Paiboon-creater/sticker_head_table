@@ -310,8 +310,9 @@
                 white-space: nowrap; 
             }
 
-            .qr-box { text-align: center; margin-left: 5mm; }
-            .qr-box canvas, .qr-box img { width: 55px !important; height: 55px !important; margin: 0 auto; }
+            .qr-box { text-align: center; margin-left: 5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+            /* ปรับขนาดการแสดงผลให้ใหญ่ขึ้นเล็กน้อย (70px) เพื่อสแกนง่ายขึ้น */
+            .qr-box canvas, .qr-box img { width: 70px !important; height: 70px !important; margin: 0 auto; image-rendering: pixelated; }
             .qr-text-top { display: block; font-size: 8px; font-weight: bold; margin-top: 2px; }
             .qr-code-display { 
                 font-size: 14px; 
@@ -358,7 +359,6 @@
                 </div>
             </div>
 
-            <!-- กล่องแสดงรายการที่ถูกเลือก -->
             <div class="selected-list" id="selectedList">
                 <p class="empty-text">ยังไม่มีรายการที่ถูกเลือก...</p>
             </div>
@@ -387,7 +387,6 @@
     let globalData = { orders: [], targets: [], workItems: [], steps: [], orderSteps: [], shortcutMap: [] };
     let selectedItems = []; 
 
-    // ฟังก์ชันช่วยโหลดข้อมูลแบบกันแครช
     async function fetchSafeData(endpoint) {
         try {
             const res = await fetch(SUPABASE_URL + endpoint, { headers });
@@ -421,7 +420,6 @@
             globalData.steps = steps;
             globalData.orderSteps = orderSteps;
 
-            // เรียงเลขที่ใบสั่งจากน้อยไปมาก โดยใช้ .trim() ตัดช่องว่างออกก่อนเปรียบเทียบ
             globalData.orders.sort((a, b) => String(a.order_no || '').trim().localeCompare(String(b.order_no || '').trim(), 'th', { numeric: true }));
 
             generateShortcutMap();
@@ -466,7 +464,6 @@
         globalData.orders.forEach(o => {
             if (o.order_no) {
                 let opt = document.createElement('option');
-                // ใช้ .trim() ตัดช่องว่างด้านหลังเสมอ เพื่อไม่ให้ user ค้นหาผิดพลาด
                 opt.value = String(o.order_no).trim();
                 datalist.appendChild(opt);
             }
@@ -490,7 +487,6 @@
 
         if (!orderSearchVal) return;
 
-        // ค้นหาใบสั่งโดยเช็คให้มั่นใจว่าข้อมูลใน DB ก็ถูกตัดช่องว่างทิ้งตอนเปรียบเทียบด้วย
         const order = globalData.orders.find(o => String(o.order_no || '').trim() === orderSearchVal);
         
         if (!order || !order.id_work) {
@@ -535,7 +531,6 @@
             return;
         }
 
-        // ค้นหา Order จากฐานข้อมูลแบบมีการ Trim
         const orderObj = globalData.orders.find(o => String(o.order_no || '').trim() === orderSearchVal);
         if (!orderObj) {
             alert("ไม่พบข้อมูลใบสั่งงานนี้ในระบบ");
@@ -555,7 +550,6 @@
         
         renderSelectedList();
         
-        // คงเลขที่ใบสั่งงานเดิมเอาไว้ รีเซ็ตแค่ช่องขั้นตอนเพื่อให้จิ้มเลือกขั้นตอนต่อไปได้เลย
         stepSelect.value = '';
         stepSelect.focus();
     }
@@ -707,11 +701,11 @@
             if (stickersHtmlData[index]) {
                 new QRCode(el, {
                     text: stickersHtmlData[index].url,
-                    width: 55,
-                    height: 55,
+                    width: 150, /* ขยายขนาดการ Render ให้ใหญ่และชัด 100% ป้องกันจุดเบียดกัน */
+                    height: 150,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.M
+                    correctLevel: QRCode.CorrectLevel.L /* ลด Level Error Correction เพื่อให้บล็อก QR โล่งขึ้น */
                 });
             }
         });
