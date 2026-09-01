@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JAGUAR // PRINT STICKER HEADER</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #030806;
+            --panel-bg: rgba(7, 24, 16, 0.95);
+            --border-neon: #00ff88;
+            --border-dim: #113a24;
+            --text-main: #e2f0ea;
+            --neon-green: #00ff88;
+            --neon-blue: #00e5ff;
+        }
+
+        body {
+            font-family: 'Sarabun', Tahoma, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .app-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid var(--border-neon);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+        }
+
+        .header-title {
+            color: var(--neon-green);
+            text-align: center;
+            border-bottom: 1px dashed var(--border-neon);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .filter-section {
+            background: #071710;
+            border: 1px solid var(--border-dim);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .filter-title {
+            color: var(--neon-blue);
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #8ca89a;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            background: #0b2218;
+            border: 1px solid var(--border-dim);
+            color: #00ffaa;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 15px;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--neon-green);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-preview {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--neon-blue);
+            border: 1px solid var(--neon-blue);
+        }
+        .btn-preview:hover { background: var(--neon-blue); color: var(--bg-dark); }
+
+        .btn-print {
+            background: linear-gradient(135deg, #071910, #040e09);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+        }
+        .btn-print:hover { background: var(--neon-green); color: var(--bg-dark); box-shadow: 0 0 15px rgba(0,255,136,0.4); }
+
+        #statusMsg {
+            text-align: center;
+            margin-top: 15px;
+            color: #f5a623;
+            font-size: 14px;
+        }
+
+        /* ========================================================= */
+        /* CSS สำหรับพิมพ์ (Print Media) - กระดาษ A4 แนวนอน (Landscape) */
+        /* ========================================================= */
+        #printArea { display: none; }
+
+        @media print {
+            body * { visibility: hidden; }
+            body { margin: 0; padding: 0; background: #fff; }
+            #printArea, #printArea * { visibility: visible; color: #000 !important; }
+            #printArea {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            @page { size: A4 landscape; margin: 5mm; }
+
+            .page-break { page-break-after: always; }
+
+            /* Grid สำหรับวางสติ๊กเกอร์ 2 คอลัมน์ 4 แถว (8 ดวงต่อแผ่น) */
+            .sticker-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr; /* 2 ดวงแนวนอน */
+                grid-template-rows: repeat(4, 46mm); /* 4 แถว ความสูงแถวละประมาณ 46mm */
+                gap: 4mm;
+                width: 287mm; /* ความกว้าง A4 แนวนอนหักขอบ */
+                height: 198mm; /* ความสูง A4 แนวนอนหักขอบ */
+                box-sizing: border-box;
+            }
+
+            .sticker-card {
+                border: 1px dashed #999; /* เส้นประสำหรับตัด */
+                padding: 3mm 4mm;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                background: #fff;
+                overflow: hidden;
+            }
+
+            .sticker-header-top {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+            }
+
+            .sticker-title h3 {
+                margin: 0 0 4px 0;
+                font-size: 14px;
+                text-align: center;
+                font-weight: bold;
+                border-bottom: 2px solid #000;
+                padding-bottom: 2px;
+                margin-bottom: 4px;
+            }
+
+            .meta-row {
+                font-size: 12px;
+                margin-bottom: 4px;
+                display: flex;
+                align-items: flex-end;
+                gap: 4px;
+                font-weight: bold;
+            }
+
+            .meta-label { white-space: nowrap; margin-bottom: -1px; }
+            
+            .meta-value {
+                border-bottom: 1.5px dotted #000;
+                padding-left: 5px;
+                min-height: 15px;
+                white-space: nowrap; 
+            }
+
+            .qr-box { text-align: center; margin-left: 5mm; }
+            .qr-box canvas, .qr-box img { width: 55px !important; height: 55px !important; margin: 0 auto; }
+            .qr-text-top { display: block; font-size: 8px; font-weight: bold; margin-top: 2px; }
+            .qr-code-display { 
+                font-size: 14px; 
+                font-weight: bold; 
+                letter-spacing: 2px; 
+                margin-top: 2px; 
+                background: #eee; 
+                border: 1px solid #000; 
+                padding: 2px; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header-title">
+        <h2><i class="fa-solid fa-print"></i> พิมพ์สติ๊กเกอร์หัวกระดาษ (A4 แนวนอน)</h2>
+    </div>
+
+    <div id="statusMsg"><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดข้อมูลระบบ...</div>
+
+    <form id="filterForm" style="display: none;">
+        
+        <div class="filter-section">
+            <div class="filter-title"><input type="radio" name="printType" value="single" checked onchange="toggleInputs()"> 1. เลือกเลขที่ใบสั่งงาน (ใบเดียว)</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>เลขที่ใบสั่งงาน</label>
+                    <select id="single_order">
+                        <option value="">-- เลือกใบสั่งงาน --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-title"><input type="radio" name="printType" value="range" onchange="toggleInputs()"> 2. เลือกช่วงเลขที่ใบสั่งงาน (ตั้งแต่ - ถึง)</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ตั้งแต่เลขที่</label>
+                    <select id="range_start" disabled>
+                        <option value="">-- เลือกเลขที่เริ่มต้น --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ถึงเลขที่</label>
+                    <select id="range_end" disabled>
+                        <option value="">-- เลือกเลขที่สุดท้าย --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <div class="filter-title"><input type="radio" name="printType" value="workcode" onchange="toggleInputs()"> 3. พิมพ์ตามรหัสชิ้นงาน (พิมพ์ทุกใบที่เป็นชิ้นงานนี้)</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>รหัสชิ้นงาน</label>
+                    <select id="filter_workcode" disabled>
+                        <option value="">-- เลือกรหัสชิ้นงาน --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button type="button" class="btn-preview" onclick="preparePrintData()"><i class="fa-solid fa-file-export"></i> ดึงข้อมูล / สร้างสติ๊กเกอร์</button>
+            <button type="button" class="btn-print" id="btnPrint" onclick="window.print()" disabled><i class="fa-solid fa-print"></i> สั่งพิมพ์ทันที</button>
+        </div>
+        <div id="printCountMsg" style="text-align: center; margin-top: 10px; color: var(--neon-blue); font-weight: bold;"></div>
+    </form>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+    const SUPABASE_URL = "https://siiiifesdjuunwmwozfb.supabase.co/rest/v1";
+    const SUPABASE_KEY = "sb_publishable_ohToE8Z_Fzo87uBtzdPDIg_cqHCi3HT";
+    
+    const headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": "Bearer " + SUPABASE_KEY,
+        "Content-Type": "application/json"
+    };
+
+    let globalData = { orders: [], targets: [], workItems: [], steps: [], orderSteps: [], shortcutMap: [] };
+
+    window.onload = async function() {
+        try {
+            const [ordersRes, targetsRes, workItemsRes, stepsRes, orderStepsRes] = await Promise.all([
+                fetch(SUPABASE_URL + "/orders?select=*", { headers }),
+                fetch(SUPABASE_URL + "/targets?select=*", { headers }),
+                fetch(SUPABASE_URL + "/work_items?select=*", { headers }),
+                fetch(SUPABASE_URL + "/production_steps?select=*", { headers }),
+                fetch(SUPABASE_URL + "/order_steps?select=*", { headers })
+            ]);
+
+            if (!ordersRes.ok) throw new Error("Database Fetch Error");
+
+            globalData.orders = await ordersRes.json();
+            globalData.targets = await targetsRes.json();
+            globalData.workItems = await workItemsRes.json();
+            globalData.steps = await stepsRes.json();
+            globalData.orderSteps = await orderStepsRes.json();
+
+            // เรียงเลขที่ใบสั่ง
+            globalData.orders.sort((a, b) => String(a.order_no || '').localeCompare(String(b.order_no || ''), 'th', { numeric: true }));
+
+            generateShortcutMap();
+            populateDropdowns();
+
+            document.getElementById('statusMsg').style.display = 'none';
+            document.getElementById('filterForm').style.display = 'block';
+
+        } catch (error) {
+            console.error(error);
+            document.getElementById('statusMsg').innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i> โหลดข้อมูลล้มเหลว: " + error.message;
+        }
+    };
+
+    // สร้างรหัส 5 หลัก (ลำดับใบสั่ง 3 หลัก + ลำดับขั้นตอน 2 หลัก)
+    function generateShortcutMap() {
+        globalData.shortcutMap = [];
+        let sortedOrders = [...globalData.orders].sort((a,b) => parseInt(a.id_order) - parseInt(b.id_order));
+        
+        sortedOrders.forEach(order => {
+            if (order.id_work) {
+                let orderTargets = globalData.targets.filter(t => String(t.id_work) === String(order.id_work));
+                orderTargets.sort((a,b) => parseInt(a.id_target) - parseInt(b.id_target));
+                
+                orderTargets.forEach((target, index) => {
+                    let orderPart = String(order.id_order).padStart(3, '0');
+                    let stepPart = String(index + 1).padStart(2, '0');
+                    
+                    globalData.shortcutMap.push({
+                        code: orderPart + stepPart, 
+                        id_order: order.id_order,
+                        id_target: target.id_target
+                    });
+                });
+            }
+        });
+    }
+
+    function populateDropdowns() {
+        const orderSelects = [document.getElementById('single_order'), document.getElementById('range_start'), document.getElementById('range_end')];
+        const workSelect = document.getElementById('filter_workcode');
+
+        globalData.orders.forEach(o => {
+            if (o.order_no) {
+                orderSelects.forEach(sel => {
+                    let opt = document.createElement('option');
+                    opt.value = o.id_order;
+                    opt.textContent = o.order_no;
+                    sel.appendChild(opt);
+                });
+            }
+        });
+
+        // ดึงรหัสชิ้นงานที่ไม่ซ้ำมาแสดง
+        let uniqueWorks = [...new Set(globalData.workItems.map(w => w.work_code))].sort();
+        uniqueWorks.forEach(wcode => {
+            const wObj = globalData.workItems.find(w => w.work_code === wcode);
+            if (wObj) {
+                let opt = document.createElement('option');
+                opt.value = wObj.id_work;
+                opt.textContent = wObj.work_code;
+                workSelect.appendChild(opt);
+            }
+        });
+    }
+
+    function toggleInputs() {
+        const printType = document.querySelector('input[name="printType"]:checked').value;
+        
+        document.getElementById('single_order').disabled = (printType !== 'single');
+        
+        document.getElementById('range_start').disabled = (printType !== 'range');
+        document.getElementById('range_end').disabled = (printType !== 'range');
+        
+        document.getElementById('filter_workcode').disabled = (printType !== 'workcode');
+    }
+
+    // แปลงวันที่ (ถ้าไม่มีให้คืนค่าว่างเพื่อเว้นไว้เขียนมือ)
+    function formatDateStr(dateInput) {
+        if (!dateInput) return ''; 
+        let d = new Date(dateInput);
+        return !isNaN(d) ? `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}` : '';
+    }
+
+    function preparePrintData() {
+        const printType = document.querySelector('input[name="printType"]:checked').value;
+        let selectedOrders = [];
+
+        if (printType === 'single') {
+            const ordId = document.getElementById('single_order').value;
+            if (!ordId) return alert("กรุณาเลือกเลขที่ใบสั่งงาน");
+            selectedOrders.push(globalData.orders.find(o => String(o.id_order) === String(ordId)));
+
+        } else if (printType === 'range') {
+            const startId = document.getElementById('range_start').value;
+            const endId = document.getElementById('range_end').value;
+            if (!startId || !endId) return alert("กรุณาเลือกช่วงเลขที่ให้ครบถ้วน");
+
+            const startOrd = globalData.orders.find(o => String(o.id_order) === String(startId));
+            const endOrd = globalData.orders.find(o => String(o.id_order) === String(endId));
+            
+            // หาช่วงจากลำดับ Index ใน Array
+            let startIndex = globalData.orders.indexOf(startOrd);
+            let endIndex = globalData.orders.indexOf(endOrd);
+            
+            if (startIndex > endIndex) {
+                let temp = startIndex;
+                startIndex = endIndex;
+                endIndex = temp;
+            }
+            selectedOrders = globalData.orders.slice(startIndex, endIndex + 1);
+
+        } else if (printType === 'workcode') {
+            const workId = document.getElementById('filter_workcode').value;
+            if (!workId) return alert("กรุณาเลือกรหัสชิ้นงาน");
+            selectedOrders = globalData.orders.filter(o => String(o.id_work) === String(workId));
+        }
+
+        if (selectedOrders.length === 0) {
+            alert("ไม่พบข้อมูลตามเงื่อนไขที่เลือก");
+            return;
+        }
+
+        buildStickers(selectedOrders);
+    }
+
+    function buildStickers(ordersList) {
+        const printArea = document.getElementById('printArea');
+        printArea.innerHTML = ''; // ล้างของเก่า
+
+        let stickersHtmlData = []; // เก็บข้อมูลเพื่อรอเรนเดอร์ลง Grid
+        const baseUrl = "https://paiboon-creater.github.io/Data_Information_Jaguar_productions/daily_production.html"; // URL สำหรับ QR
+
+        ordersList.forEach(orderObj => {
+            if (!orderObj.id_work) return; // ถ้าไม่มีชิ้นงาน ข้ามไป
+
+            // หา Target (ขั้นตอน) ทั้งหมดของชิ้นงานนี้
+            const orderTargets = globalData.targets.filter(t => String(t.id_work) === String(orderObj.id_work));
+            orderTargets.sort((a,b) => parseInt(a.id_target) - parseInt(b.id_target));
+
+            let workCodeText = "";
+            const foundW = globalData.workItems.find(w => String(w.id_work) === String(orderObj.id_work));
+            if (foundW) workCodeText = foundW.work_code;
+
+            const orderNo = orderObj.order_no || '';
+            const quantity = orderObj.quantity ? parseInt(orderObj.quantity).toLocaleString() + ' ชิ้น' : '';
+
+            orderTargets.forEach(targetObj => {
+                let stepNameText = "";
+                let stepStartDateStr = "";
+                let stepEndDateStr = "";
+
+                if (targetObj.id_step) {
+                    const foundStp = globalData.steps.find(s => String(s.id_step) === String(targetObj.id_step));
+                    if (foundStp) stepNameText = foundStp.step_name;
+
+                    // หาว่ามีการกำหนดวันเริ่ม/เสร็จ ของขั้นตอนนี้หรือยัง
+                    const orderStepObj = globalData.orderSteps.find(os => String(os.id_order) === String(orderObj.id_order) && String(os.id_step) === String(targetObj.id_step));
+                    if (orderStepObj) {
+                        stepStartDateStr = formatDateStr(orderStepObj.start_date); // ถ้าว่างคือให้เขียนมือ
+                        stepEndDateStr = formatDateStr(orderStepObj.end_date);
+                    }
+                }
+
+                const shortcutObj = globalData.shortcutMap.find(s => String(s.id_order) === String(orderObj.id_order) && String(s.id_target) === String(targetObj.id_target));
+                const printCode = shortcutObj ? shortcutObj.code : "";
+                
+                const currentUrl = `${baseUrl}?order_id=${encodeURIComponent(orderObj.id_order)}&target_id=${encodeURIComponent(targetObj.id_target)}`;
+
+                // สร้าง Block HTML ของสติ๊กเกอร์ 1 ดวง
+                let html = `
+                    <div class="sticker-card">
+                        <div class="sticker-header-top">
+                            <div style="flex-grow: 1; overflow: hidden;">
+                                <div class="sticker-title"><h3>ใบความก้าวหน้าของการผลิต</h3></div>
+                                <div class="meta-row">
+                                    <span class="meta-label">ใบสั่งงานเลขที่:</span> 
+                                    <span class="meta-value" style="flex: 1.4;">${orderNo}</span>
+                                    <span class="meta-label" style="margin-left: 10px;">ขั้นตอน:</span> 
+                                    <span class="meta-value" style="flex: 1.2;">${stepNameText}</span>
+                                </div>
+                                <div class="meta-row">
+                                    <span class="meta-label">ชนิดงาน:</span> 
+                                    <span class="meta-value" style="flex: 1;">${workCodeText}</span>
+                                </div>
+                                <div class="meta-row">
+                                    <span class="meta-label">จำนวนสั่งผลิต:</span> 
+                                    <span class="meta-value" style="flex: 1;">${quantity}</span>
+                                </div>
+                                <div class="meta-row">
+                                    <span class="meta-label">วันที่เริ่ม:</span> <span class="meta-value" style="flex: 1;">${stepStartDateStr}</span>
+                                    <span class="meta-label" style="margin-left: 10px;">วันที่เสร็จ:</span> <span class="meta-value" style="flex: 1;">${stepEndDateStr}</span>
+                                </div>
+                            </div>
+                            <div class="qr-box">
+                                <div class="qrcode-target" data-url="${currentUrl}"></div>
+                                <span class="qr-text-top">สแกน / รหัสพิมพ์</span>
+                                <div class="qr-code-display">[ ${printCode} ]</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                stickersHtmlData.push({ html: html, url: currentUrl });
+            });
+        });
+
+        if (stickersHtmlData.length === 0) {
+            alert("ไม่พบขั้นตอนการผลิตสำหรับใบสั่งงานที่เลือก");
+            return;
+        }
+
+        // จัดหน้ากระดาษ A4 (1 หน้า = 8 ดวง)
+        let pageHtml = '';
+        const stickersPerPage = 8;
+        const totalPages = Math.ceil(stickersHtmlData.length / stickersPerPage);
+
+        for (let p = 0; p < totalPages; p++) {
+            pageHtml += `<div class="sticker-grid ${p < totalPages - 1 ? 'page-break' : ''}">`;
+            
+            let startIdx = p * stickersPerPage;
+            let endIdx = startIdx + stickersPerPage;
+            
+            for (let i = startIdx; i < endIdx; i++) {
+                if (i < stickersHtmlData.length) {
+                    pageHtml += stickersHtmlData[i].html;
+                } else {
+                    // ช่องว่างให้ครบกริด
+                    pageHtml += `<div style="border: 1px dashed transparent;"></div>`; 
+                }
+            }
+            pageHtml += `</div>`;
+        }
+
+        printArea.innerHTML = pageHtml;
+
+        // วาด QR Code
+        const qrElements = document.querySelectorAll('.qrcode-target');
+        qrElements.forEach((el, index) => {
+            if (stickersHtmlData[index]) {
+                new QRCode(el, {
+                    text: stickersHtmlData[index].url,
+                    width: 55,
+                    height: 55,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            }
+        });
+
+        // เปิดปุ่มสั่งพิมพ์
+        document.getElementById('btnPrint').disabled = false;
+        document.getElementById('printCountMsg').innerText = `สร้างเสร็จแล้ว! พร้อมพิมพ์จำนวน ${stickersHtmlData.length} ดวง (${totalPages} แผ่น)`;
+    }
+</script>
+
+</body>
+</html>
