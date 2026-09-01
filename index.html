@@ -391,7 +391,7 @@
     async function fetchSafeData(endpoint) {
         try {
             const res = await fetch(SUPABASE_URL + endpoint, { headers });
-            if (!res.ok) return []; // ถ้าดึงไม่สำเร็จ หรือไม่มีตาราง ให้คืนค่าอาร์เรย์ว่างๆ กลับไปแทนการแครช
+            if (!res.ok) return []; 
             const data = await res.json();
             return Array.isArray(data) ? data : [];
         } catch (err) {
@@ -400,10 +400,8 @@
         }
     }
 
-    // เปลี่ยนมาใช้ DOMContentLoaded เพื่อให้โหลด UI เร็วขึ้น
     document.addEventListener("DOMContentLoaded", async function() {
         try {
-            // โหลดข้อมูลทุกตารางพร้อมกัน
             const [orders, targets, workItems, steps, orderSteps] = await Promise.all([
                 fetchSafeData("/orders?select=*"),
                 fetchSafeData("/targets?select=*"),
@@ -412,7 +410,6 @@
                 fetchSafeData("/order_steps?select=*")
             ]);
 
-            // ถ้าระบบไม่มีข้อมูลใบสั่งงานเลย ให้แจ้งเตือน
             if (orders.length === 0) {
                 document.getElementById('statusMsg').innerHTML = "<i class='fa-solid fa-triangle-exclamation'></i> ไม่พบข้อมูลใบสั่งงาน หรือการเชื่อมต่อฐานข้อมูลมีปัญหา";
                 return;
@@ -424,7 +421,6 @@
             globalData.steps = steps;
             globalData.orderSteps = orderSteps;
 
-            // เรียงเลขที่ใบสั่งจากน้อยไปมาก (เก่าไปใหม่) ป้องกัน error กรณี field ไม่มีค่า
             globalData.orders.sort((a, b) => String(a.order_no || '').localeCompare(String(b.order_no || ''), 'th', { numeric: true }));
 
             generateShortcutMap();
@@ -474,7 +470,6 @@
             }
         });
 
-        // ดึงใบสั่งล่าสุดมาเป็นค่าเริ่มต้น
         if (globalData.orders.length > 0) {
             const latestOrder = globalData.orders[globalData.orders.length - 1]; 
             if (latestOrder && latestOrder.order_no) {
@@ -556,10 +551,9 @@
         
         renderSelectedList();
         
-        document.getElementById('order_search').value = '';
-        stepSelect.innerHTML = '<option value="">-- รอเลือกใบสั่งงาน --</option>';
-        stepSelect.disabled = true;
-        document.getElementById('order_search').focus();
+        // คงเลขที่ใบสั่งงานเดิมเอาไว้ รีเซ็ตแค่ช่องขั้นตอนเพื่อให้จิ้มเลือกขั้นตอนต่อไปได้เลย
+        stepSelect.value = '';
+        stepSelect.focus();
     }
 
     function addItemToArray(orderObj, targetId, stepName) {
