@@ -387,7 +387,7 @@
     let globalData = { orders: [], targets: [], workItems: [], steps: [], orderSteps: [], shortcutMap: [] };
     let selectedItems = []; 
 
-    // ฟังก์ชันช่วยโหลดข้อมูลแบบกันแครช (Safe Fetch)
+    // ฟังก์ชันช่วยโหลดข้อมูลแบบกันแครช
     async function fetchSafeData(endpoint) {
         try {
             const res = await fetch(SUPABASE_URL + endpoint, { headers });
@@ -421,7 +421,8 @@
             globalData.steps = steps;
             globalData.orderSteps = orderSteps;
 
-            globalData.orders.sort((a, b) => String(a.order_no || '').localeCompare(String(b.order_no || ''), 'th', { numeric: true }));
+            // เรียงเลขที่ใบสั่งจากน้อยไปมาก โดยใช้ .trim() ตัดช่องว่างออกก่อนเปรียบเทียบ
+            globalData.orders.sort((a, b) => String(a.order_no || '').trim().localeCompare(String(b.order_no || '').trim(), 'th', { numeric: true }));
 
             generateShortcutMap();
             populateOrderSearch();
@@ -465,7 +466,8 @@
         globalData.orders.forEach(o => {
             if (o.order_no) {
                 let opt = document.createElement('option');
-                opt.value = o.order_no;
+                // ใช้ .trim() ตัดช่องว่างด้านหลังเสมอ เพื่อไม่ให้ user ค้นหาผิดพลาด
+                opt.value = String(o.order_no).trim();
                 datalist.appendChild(opt);
             }
         });
@@ -473,7 +475,7 @@
         if (globalData.orders.length > 0) {
             const latestOrder = globalData.orders[globalData.orders.length - 1]; 
             if (latestOrder && latestOrder.order_no) {
-                document.getElementById('order_search').value = latestOrder.order_no;
+                document.getElementById('order_search').value = String(latestOrder.order_no).trim();
                 handleOrderSelect(); 
             }
         }
@@ -488,7 +490,8 @@
 
         if (!orderSearchVal) return;
 
-        const order = globalData.orders.find(o => o.order_no === orderSearchVal);
+        // ค้นหาใบสั่งโดยเช็คให้มั่นใจว่าข้อมูลใน DB ก็ถูกตัดช่องว่างทิ้งตอนเปรียบเทียบด้วย
+        const order = globalData.orders.find(o => String(o.order_no || '').trim() === orderSearchVal);
         
         if (!order || !order.id_work) {
             stepSelect.innerHTML = '<option value="">-- ไม่พบการตั้งค่า หรือชิ้นงานในใบนี้ --</option>';
@@ -532,7 +535,8 @@
             return;
         }
 
-        const orderObj = globalData.orders.find(o => o.order_no === orderSearchVal);
+        // ค้นหา Order จากฐานข้อมูลแบบมีการ Trim
+        const orderObj = globalData.orders.find(o => String(o.order_no || '').trim() === orderSearchVal);
         if (!orderObj) {
             alert("ไม่พบข้อมูลใบสั่งงานนี้ในระบบ");
             return;
@@ -561,7 +565,7 @@
         if (!exists) {
             selectedItems.push({
                 id_order: orderObj.id_order,
-                order_no: orderObj.order_no,
+                order_no: String(orderObj.order_no).trim(),
                 id_target: targetId,
                 step_name: stepName
             });
@@ -623,7 +627,7 @@
                 if (foundW) workCodeText = foundW.work_code;
             }
 
-            const orderNo = orderObj.order_no || '';
+            const orderNo = orderObj.order_no ? String(orderObj.order_no).trim() : '';
             const quantity = orderObj.quantity ? parseInt(orderObj.quantity).toLocaleString() + ' ชิ้น' : '';
 
             let stepStartDateStr = "";
