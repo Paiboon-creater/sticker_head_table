@@ -84,7 +84,7 @@
             color: #8ca89a;
         }
 
-        select {
+        input[type="text"], select {
             width: 100%;
             padding: 12px;
             background: #0b2218;
@@ -93,19 +93,33 @@
             border-radius: 6px;
             font-family: inherit;
             font-size: 15px;
+            box-sizing: border-box;
+        }
+        
+        input[type="text"] {
+            cursor: text;
+        }
+        select {
             cursor: pointer;
         }
 
-        select:focus {
+        input[type="text"]:focus, select:focus {
             outline: none;
             border-color: var(--neon-green);
             box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+            background: #0e2b1f;
         }
 
         select:disabled {
             background: #05120d;
             color: #5d7568;
             cursor: not-allowed;
+        }
+
+        /* ปรับแต่ง input ที่มี list ให้มีลูกศรเหมือน dropdown */
+        input[list]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8) sepia(1) saturate(5) hue-rotate(90deg);
+            cursor: pointer;
         }
 
         .btn-add {
@@ -121,6 +135,7 @@
             transition: all 0.2s;
             width: 100%;
             white-space: nowrap;
+            box-sizing: border-box;
         }
 
         .btn-add:hover {
@@ -240,7 +255,6 @@
 
             .page-break { page-break-after: always; }
 
-            /* Grid สำหรับวางสติ๊กเกอร์ 2 คอลัมน์ 4 แถว (8 ดวงต่อแผ่น) */
             .sticker-grid {
                 display: grid;
                 grid-template-columns: 1fr 1fr;
@@ -327,10 +341,9 @@
             
             <div class="form-row">
                 <div class="form-group" style="flex: 1.5;">
-                    <label>1. เลือกเลขที่ใบสั่งงาน</label>
-                    <select id="select_order" onchange="handleOrderSelect()">
-                        <option value="">-- เลือกใบสั่งงาน --</option>
-                    </select>
+                    <label>1. ค้นหา/เลือกเลขที่ใบสั่งงาน</label>
+                    <input type="text" id="order_search" list="order_datalist" placeholder="-- พิมพ์ค้นหา หรือเลือกจากรายการ --" onchange="handleOrderSelect()" onclick="this.select()" autocomplete="off">
+                    <datalist id="order_datalist"></datalist>
                 </div>
                 <div class="form-group" style="flex: 2;">
                     <label>2. เลือกขั้นตอน (เฉพาะใบนี้)</label>
@@ -372,7 +385,7 @@
 
     let globalData = { orders: [], targets: [], workItems: [], steps: [], orderSteps: [], shortcutMap: [] };
     
-    // อาร์เรย์เก็บข้อมูลที่ถูกเลือก (เก็บเป็น Object เพราะต้องระบุทั้งใบสั่งและขั้นตอน)
+    // อาร์เรย์เก็บข้อมูลที่ถูกเลือก
     let selectedItems = []; 
 
     window.onload = async function() {
@@ -393,11 +406,11 @@
             globalData.steps = await stepsRes.json();
             globalData.orderSteps = await orderStepsRes.json();
 
-            // เรียงเลขที่ใบสั่ง
+            // เรียงเลขที่ใบสั่งจากน้อยไปมาก (เก่าไปใหม่)
             globalData.orders.sort((a, b) => String(a.order_no || '').localeCompare(String(b.order_no || ''), 'th', { numeric: true }));
 
             generateShortcutMap();
-            populateOrderDropdown();
+            populateOrderSearch();
 
             document.getElementById('statusMsg').style.display = 'none';
             document.getElementById('filterForm').style.display = 'block';
@@ -431,262 +444,35 @@
         });
     }
 
-    function populateOrderDropdown() {
-        const selectEl = document.getElementById('select_order');
-        selectEl.innerHTML = '<option value="">-- เลือกใบสั่งงาน --</option>';
+    function populateOrderSearch() {
+        const datalist = document.getElementById('order_datalist');
+        datalist.innerHTML = '';
         
         globalData.orders.forEach(o => {
             if (o.order_no) {
                 let opt = document.createElement('option');
-                opt.value = o.id_order;
-                opt.textContent = o.order_no;
-                selectEl.appendChild(opt);
+                opt.value = o.order_no;
+                datalist.appendChild(opt);
             }
         });
+
+        // ดึงใบสั่งล่าสุดมาเป็นค่าเริ่มต้น
+        if (globalData.orders.length > 0) {
+            const latestOrder = globalData.orders[globalData.orders.length - 1]; // ค่าสุดท้ายของ Array ที่เรียงแล้ว
+            document.getElementById('order_search').value = latestOrder.order_no;
+            handleOrderSelect(); // โหลดขั้นตอนทันที
+        }
     }
 
-    // เมื่อเลือกใบสั่งงาน ให้โหลดขั้นตอนของใบสั่งงานนั้นมาแสดง
+    // เมื่อค้นหา/เลือกใบสั่งงาน ให้โหลดขั้นตอนของใบสั่งงานนั้นมาแสดง
     function handleOrderSelect() {
-        const orderId = document.getElementById('select_order').value;
+        const orderSearchVal = document.getElementById('order_search').value.trim();
         const stepSelect = document.getElementById('select_step');
         
         stepSelect.innerHTML = '<option value="">-- รอเลือกใบสั่งงาน --</option>';
         stepSelect.disabled = true;
 
-        if (!orderId) return;
+        if (!orderSearchVal) return;
 
-        const order = globalData.orders.find(o => String(o.id_order) === String(orderId));
-        if (!order || !order.id_work) {
-            stepSelect.innerHTML = '<option value="">-- ไม่พบการตั้งค่าชิ้นงานในใบนี้ --</option>';
-            return;
-        }
-
-        const orderTargets = globalData.targets.filter(t => String(t.id_work) === String(order.id_work));
-        orderTargets.sort((a,b) => parseInt(a.id_target) - parseInt(b.id_target));
-
-        if (orderTargets.length > 0) {
-            stepSelect.innerHTML = '<option value="ALL">-- เลือกทุกขั้นตอน -- (พิมพ์หมด)</option>';
-            
-            orderTargets.forEach(t => {
-                let stepName = `ID ขั้นตอน: ${t.id_target}`;
-                if (t.id_step) {
-                    const s = globalData.steps.find(step => String(step.id_step) === String(t.id_step));
-                    if (s) stepName = s.step_name;
-                }
-                let opt = document.createElement('option');
-                opt.value = t.id_target;
-                opt.textContent = stepName;
-                stepSelect.appendChild(opt);
-            });
-            stepSelect.disabled = false;
-        } else {
-            stepSelect.innerHTML = '<option value="">-- ไม่พบขั้นตอนการทำงาน --</option>';
-        }
-    }
-
-    // ฟังก์ชันเพิ่มรายการลงตระกร้าพิมพ์
-    function addSelectedItem() {
-        const orderSelect = document.getElementById('select_order');
-        const stepSelect = document.getElementById('select_step');
-        
-        const orderId = orderSelect.value;
-        const targetId = stepSelect.value;
-        
-        if (!orderId) {
-            alert("กรุณาเลือกเลขที่ใบสั่งงานก่อนครับ");
-            return;
-        }
-        if (!targetId) {
-            alert("กรุณาเลือกขั้นตอนที่ต้องการพิมพ์ครับ");
-            return;
-        }
-
-        const orderObj = globalData.orders.find(o => String(o.id_order) === String(orderId));
-        
-        if (targetId === "ALL") {
-            // เหมาทุกขั้นตอน
-            Array.from(stepSelect.options).forEach(opt => {
-                if (opt.value !== "ALL" && opt.value !== "") {
-                    addItemToArray(orderObj, opt.value, opt.textContent);
-                }
-            });
-        } else {
-            // เลือกเฉพาะขั้นตอน
-            const stepName = stepSelect.options[stepSelect.selectedIndex].text;
-            addItemToArray(orderObj, targetId, stepName);
-        }
-        
-        renderSelectedList();
-        
-        // รีเซ็ตค่ากลับเผื่อเลือกรอบใหม่
-        orderSelect.value = '';
-        stepSelect.innerHTML = '<option value="">-- รอเลือกใบสั่งงาน --</option>';
-        stepSelect.disabled = true;
-    }
-
-    function addItemToArray(orderObj, targetId, stepName) {
-        // เช็คว่ากดซ้ำหรือไม่
-        const exists = selectedItems.find(i => String(i.id_order) === String(orderObj.id_order) && String(i.id_target) === String(targetId));
-        if (!exists) {
-            selectedItems.push({
-                id_order: orderObj.id_order,
-                order_no: orderObj.order_no,
-                id_target: targetId,
-                step_name: stepName
-            });
-        }
-    }
-
-    function removeItem(index) {
-        selectedItems.splice(index, 1);
-        renderSelectedList();
-    }
-
-    function renderSelectedList() {
-        const container = document.getElementById('selectedList');
-        container.innerHTML = '';
-
-        if (selectedItems.length === 0) {
-            container.innerHTML = '<p class="empty-text">ยังไม่มีรายการที่ถูกเลือก...</p>';
-            return;
-        }
-
-        selectedItems.forEach((item, index) => {
-            const tag = document.createElement('div');
-            tag.className = 'order-tag';
-            tag.innerHTML = `<span><strong>${item.order_no}</strong> | ${item.step_name}</span> <i class="fa-solid fa-xmark" title="ลบออก" onclick="removeItem(${index})"></i>`;
-            container.appendChild(tag);
-        });
-    }
-
-    function formatDateStr(dateInput) {
-        if (!dateInput) return ''; 
-        let d = new Date(dateInput);
-        return !isNaN(d) ? `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth()+1).toString().padStart(2, '0')}/${d.getFullYear()}` : '';
-    }
-
-    function preparePrintData() {
-        if (selectedItems.length === 0) {
-            alert("⚠️ กรุณาเพิ่มรายการลงในช่องรายการที่ถูกเลือกก่อนครับ");
-            return;
-        }
-        buildStickers(selectedItems);
-    }
-
-    function buildStickers(itemsList) {
-        const printArea = document.getElementById('printArea');
-        printArea.innerHTML = ''; 
-
-        let stickersHtmlData = []; 
-        const baseUrl = "https://paiboon-creater.github.io/Data_Information_Jaguar_productions/daily_production.html";
-
-        itemsList.forEach(item => {
-            const orderObj = globalData.orders.find(o => String(o.id_order) === String(item.id_order));
-            const targetObj = globalData.targets.find(t => String(t.id_target) === String(item.id_target));
-            
-            if (!orderObj || !targetObj) return; 
-
-            let workCodeText = "";
-            if (orderObj.id_work) {
-                const foundW = globalData.workItems.find(w => String(w.id_work) === String(orderObj.id_work));
-                if (foundW) workCodeText = foundW.work_code;
-            }
-
-            const orderNo = orderObj.order_no || '';
-            const quantity = orderObj.quantity ? parseInt(orderObj.quantity).toLocaleString() + ' ชิ้น' : '';
-
-            let stepStartDateStr = "";
-            let stepEndDateStr = "";
-
-            if (targetObj.id_step) {
-                const orderStepObj = globalData.orderSteps.find(os => String(os.id_order) === String(orderObj.id_order) && String(os.id_step) === String(targetObj.id_step));
-                if (orderStepObj) {
-                    stepStartDateStr = formatDateStr(orderStepObj.start_date);
-                    stepEndDateStr = formatDateStr(orderStepObj.end_date);
-                }
-            }
-
-            const shortcutObj = globalData.shortcutMap.find(s => String(s.id_order) === String(orderObj.id_order) && String(s.id_target) === String(targetObj.id_target));
-            const printCode = shortcutObj ? shortcutObj.code : "";
-            const currentUrl = `${baseUrl}?order_id=${encodeURIComponent(orderObj.id_order)}&target_id=${encodeURIComponent(targetObj.id_target)}`;
-
-            let html = `
-                <div class="sticker-card">
-                    <div class="sticker-header-top">
-                        <div style="flex-grow: 1; overflow: hidden;">
-                            <div class="sticker-title"><h3>ใบความก้าวหน้าของการผลิต</h3></div>
-                            <div class="meta-row">
-                                <span class="meta-label">ใบสั่งงานเลขที่:</span> 
-                                <span class="meta-value" style="flex: 1.4;">${orderNo}</span>
-                                <span class="meta-label" style="margin-left: 10px;">ขั้นตอน:</span> 
-                                <span class="meta-value" style="flex: 1.2; font-size: 11px;">${item.step_name}</span>
-                            </div>
-                            <div class="meta-row">
-                                <span class="meta-label">ชนิดงาน:</span> 
-                                <span class="meta-value" style="flex: 1;">${workCodeText}</span>
-                            </div>
-                            <div class="meta-row">
-                                <span class="meta-label">จำนวนสั่งผลิต:</span> 
-                                <span class="meta-value" style="flex: 1;">${quantity}</span>
-                            </div>
-                            <div class="meta-row">
-                                <span class="meta-label">วันที่เริ่ม:</span> <span class="meta-value" style="flex: 1;">${stepStartDateStr}</span>
-                                <span class="meta-label" style="margin-left: 10px;">วันที่เสร็จ:</span> <span class="meta-value" style="flex: 1;">${stepEndDateStr}</span>
-                            </div>
-                        </div>
-                        <div class="qr-box">
-                            <div class="qrcode-target" data-url="${currentUrl}"></div>
-                            <span class="qr-text-top">สแกน / รหัสพิมพ์</span>
-                            <div class="qr-code-display">[ ${printCode} ]</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            stickersHtmlData.push({ html: html, url: currentUrl });
-        });
-
-        // จัดหน้ากระดาษ A4 (1 หน้า = 8 ดวง)
-        let pageHtml = '';
-        const stickersPerPage = 8;
-        const totalPages = Math.ceil(stickersHtmlData.length / stickersPerPage);
-
-        for (let p = 0; p < totalPages; p++) {
-            pageHtml += `<div class="sticker-grid ${p < totalPages - 1 ? 'page-break' : ''}">`;
-            
-            let startIdx = p * stickersPerPage;
-            let endIdx = startIdx + stickersPerPage;
-            
-            for (let i = startIdx; i < endIdx; i++) {
-                if (i < stickersHtmlData.length) {
-                    pageHtml += stickersHtmlData[i].html;
-                } else {
-                    pageHtml += `<div style="border: 1px dashed transparent;"></div>`; 
-                }
-            }
-            pageHtml += `</div>`;
-        }
-
-        printArea.innerHTML = pageHtml;
-
-        // วาด QR Code
-        const qrElements = document.querySelectorAll('.qrcode-target');
-        qrElements.forEach((el, index) => {
-            if (stickersHtmlData[index]) {
-                new QRCode(el, {
-                    text: stickersHtmlData[index].url,
-                    width: 55,
-                    height: 55,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.M
-                });
-            }
-        });
-
-        document.getElementById('btnPrint').disabled = false;
-        document.getElementById('printCountMsg').innerText = `✅ สร้างเสร็จแล้ว! พร้อมพิมพ์จำนวน ${stickersHtmlData.length} ดวง (${totalPages} แผ่น)`;
-    }
-</script>
-
-</body>
-</html>
+        // หา Order ID จากเลขที่ใบสั่ง
+        const
